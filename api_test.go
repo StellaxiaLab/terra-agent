@@ -51,3 +51,14 @@ type transportFunc func(ctx context.Context, method, path string, body []byte) (
 func (f transportFunc) Do(ctx context.Context, method, path string, body []byte) (Answer, error) {
 	return f(ctx, method, path, body)
 }
+
+// modules io.terra.agent가 추가로 쓰는 심볼 (modules a78819d 실측).
+var (
+	_ Decision                             = DecisionRun
+	_ Decision                             = DecisionPlan
+	_ Decision                             = DecisionConfirm
+	_ Decision                             = DecisionRefuse
+	_ func(ExternalTool, Policy) Judgement = DecideExternal
+	_ Policy                               = Policy{}
+	_ []string                             = []string{StatusOK, StatusRefused, StatusError, ToolNodes, ExternalToolPrefix, CodeUnknownTool, CodeApprovalRequired, CodeApprovalDenied, CodeRetryRefused}
+)

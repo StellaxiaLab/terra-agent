@@ -41,20 +41,20 @@ terra-cli는 `CatalogOperation`을 직접 쓰지 않는다(위 세 파일에 `ap
 
 ### 1.2 modules — `io.terra.agent`
 
-설계 문서 §3이 기록한 27개 심볼 중 이름이 확인된 것이다. **modules 레포는 이 세션의 접근 범위 밖이라 `modules origin/main`에서 직접 재검증하지 못했다.** 아래 목록은 작업 지시에 적힌 이름이며, 27개의 전수 확인은 modules 쪽(M-3)에서 `go build`로 한다.
+`StellaxiaLab/modules` `main` a78819d의 `common/io.terra.agent`를 `agentcore\.` 로 스캔한 실측이다. 서로 다른 심볼 **47개**로, 설계 문서 §3의 "27"보다 많다(그 수치는 당시 스캔 기준이며 이후 늘었거나 다르게 센 것으로 보인다).
 
-| 심볼 | 종류 |
+| 그룹 | 심볼 |
 | --- | --- |
-| `Agent`, `New`, `Options` | 타입, 함수, 타입 |
-| `Answer`, `Transport` | 타입, 인터페이스 |
-| `Approver`, `ApproverFunc`, `ApprovalRequest` | 인터페이스, 함수 어댑터, 타입 |
-| `Autonomy`, `AutonomyPlan`, `AutonomyAsk`, `AutonomyAuto`, `AutonomyUnattended` | 타입, 상수 |
-| `Error` | 타입 |
-| `ExternalTool`, `ExternalResult`, `ParseExternalToolName`, `ValidExternalName` | 타입, 타입, 함수, 함수 |
-| `NewClient` | 함수 |
-| `Record`, `Recorder`, `RecorderFunc` | 타입, 인터페이스, 함수 어댑터 |
-| `StatusPlanned` | 상수 |
-| `Tool`, `ToolInvoke`, `ToolResult` | 타입, 상수, 타입 |
+| 에이전트 | `Agent`, `New`, `Options`, `Tools`, `Tool`, `ToolResult`, `NewClient` |
+| 전송 | `Transport`, `Answer` |
+| 승인 | `Approver`, `ApproverFunc`, `ApprovalRequest`, `Policy`, `Decision`, `DecisionRun`, `DecisionPlan`, `DecisionConfirm`, `DecisionRefuse`, `DecideExternal` |
+| 자율도 | `Autonomy`, `AutonomyPlan`, `AutonomyAsk`, `AutonomyAuto`, `AutonomyUnattended`, `KnownAutonomy` |
+| 기록 | `Record`, `Recorder`, `RecorderFunc`, `StatusOK`, `StatusRefused`, `StatusError`, `StatusPlanned` |
+| 도구 이름 | `ToolSearch`, `ToolDescribe`, `ToolInvoke`, `ToolSession`, `ToolNodes` |
+| 오류 | `Error`, `CodeUnknownTool`, `CodeApprovalRequired`, `CodeApprovalDenied`, `CodeRetryRefused` |
+| 외부 도구 | `ExternalTool`, `ExternalResult`, `ExternalToolPrefix`, `ParseExternalToolName`, `ValidExternalName` |
+
+modules는 `ApprovalRequest.Operation`의 하위 필드를 직접 읽지 않는다(`.Operation.` 참조 없음). 따라서 `CatalogOperation` 이동이 modules 코드에 미치는 영향은 타입 이름 참조가 없는 한 없다.
 
 두 소비자가 겹치는 것: `Agent`, `New`, `Options`, `Answer`, `Transport`, `Record`, `Recorder`, `RecorderFunc`, `Autonomy*`, `ToolInvoke`.
 

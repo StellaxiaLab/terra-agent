@@ -221,5 +221,5 @@ Go 타입으로는 `apicontract.CatalogOperation`과 `agentcore.CatalogOperation
 
 **남은 확인**
 
-- modules의 `io.terra.agent`가 `ApprovalRequest.Operation`의 어떤 필드를 읽는지는 확인하지 못했다(modules는 이 레포 세션의 범위 밖).
+- modules `a78819d`의 `io.terra.agent`는 `ApprovalRequest.Operation`의 하위 필드를 읽지 않는다(확인함). 사용 심볼은 47개(`docs/api.md` 1.2).
 - 이 문서의 다른 레포 사본에는 아직 반영되지 않았다.
