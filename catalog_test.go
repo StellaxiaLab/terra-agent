@@ -1,6 +1,7 @@
 package agentcore
 
 import (
+	"context"
 	"encoding/json"
 	"reflect"
 	"testing"
@@ -64,5 +65,38 @@ func TestCatalogOperationJSONRoundTripsEveryField(t *testing.T) {
 	}
 	if !reflect.DeepEqual(want, got) {
 		t.Fatalf("round trip changed the JSON\nwant %v\n got %v", want, got)
+	}
+}
+
+// describe 도구는 operation 전체를 모델에 돌려준다. 승인 판정이 읽지 않는 필드
+// (특히 호출 방법을 알려 주는 input 스키마)도 그대로 나가야 하므로, 이 타입을
+// "읽는 필드"로 줄이면 동작이 바뀐다. 그 이유로 모든 필드를 가져왔다.
+func TestDescribeForwardsFieldsTheGateDoesNotRead(t *testing.T) {
+	const path = "GET /api/v1/catalog/operations/io.example.do"
+	transport := &fakeTransport{responses: map[string]string{path: `{
+		"operationId": "io.example.do",
+		"providerId": "io.example",
+		"version": "1.2.0",
+		"tags": ["a"],
+		"availability": {"hostRoles": ["master"]},
+		"execution": {"risk": "read", "cancellation": "supported"},
+		"sideEffects": [{"resourceId": "r1", "action": "read"}],
+		"input": {"type": "object", "required": ["name"]}
+	}`}}
+	agent, _ := newAgent(t, AutonomyAsk, transport)
+	result := agent.Call(context.Background(), ToolDescribe, json.RawMessage(`{"operationId":"io.example.do"}`))
+	if result.Err != nil {
+		t.Fatal(result.Err)
+	}
+	var payload struct {
+		Operation map[string]any `json:"operation"`
+	}
+	if err := json.Unmarshal(result.Payload, &payload); err != nil {
+		t.Fatal(err)
+	}
+	for _, key := range []string{"providerId", "version", "tags", "availability", "execution", "sideEffects", "input"} {
+		if _, ok := payload.Operation[key]; !ok {
+			t.Errorf("describe dropped %q from the operation it returned to the model", key)
+		}
 	}
 }
