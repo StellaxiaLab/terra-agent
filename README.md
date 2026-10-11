@@ -7,3 +7,7 @@ Terra 에이전트 루프 라이브러리(`agentcore`). `terra-cli`와 `io.terra
 - 릴리스는 태그(`v0.x.y`)로 한다. 별도 릴리스 워크플로는 없다.
 
 > 상태: 골격 단계. 설계와 작업 분담은 [docs/design/module-independent-repos.md](docs/design/module-independent-repos.md)를 본다.
+
+## 라이선스
+
+[Apache License 2.0](LICENSE). 특허 사용권이 명시되어 있고, 상표(“Terra” 등의 이름)는 이 라이선스가 허락하는 범위 밖이다.
