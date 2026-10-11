@@ -16,7 +16,7 @@ last_updated: "2026-10-11"
 ## 진행 현황 (2026-10-11)
 
 > 아래는 2026-10-11에 각 레포 `origin/main`과 PR 상태를 `gh`로 다시 확인한 결과다. 본문(§1~§8)의 결정·표·작업 목록은 이력이라 고치지 않았다. 본문과 어긋나는 곳은 §7에 정정 한 줄로 달았다.
-> 상태 기호: ✅ 병합 · ⏳ 진행 중 · ⏸ 보류(사용자 결정 대기).
+> 상태 기호: ✅ 병합 · ⏳ 진행 중. M-7은 해당 없음(이관하지 않기로 결정).
 
 ### 작업별 상태
 
@@ -29,14 +29,14 @@ last_updated: "2026-10-11"
 | M-3 | ✅ | modules [#59](https://github.com/StellaxiaLab/modules/pull/59)·[#64](https://github.com/StellaxiaLab/modules/pull/64). [#61](https://github.com/StellaxiaLab/modules/pull/61)은 닫음 |
 | M-4 | ✅ | modules [#57](https://github.com/StellaxiaLab/modules/pull/57) |
 | M-5·M-6 | ✅ | modules [#68](https://github.com/StellaxiaLab/modules/pull/68)(앞선 [#62](https://github.com/StellaxiaLab/modules/pull/62)를 main 기준으로 다시 만든 것). 단, 검사 다섯 개를 Terra CI로 넘겼고 그 잡은 아직 없다(아래 설계 변경 3) |
-| M-7 | ⏸ | **보류 — 권고: Terra에 남김, 승인 대기.** 아래 "사용자 결정 대기" 참고 |
+| M-7 | 해당 없음 | **결정(2026-10-11, 사용자 승인): 이관하지 않음 — 예제는 Terra에 남는다.** 사유는 아래 설계 변경 4 |
 | M-8 | ✅ | modules [#56](https://github.com/StellaxiaLab/modules/pull/56)(초안 포함). 독립 빌드 절에 이 문서 링크를 거는 [#71](https://github.com/StellaxiaLab/modules/pull/71)은 열려 있다 |
 | T-1 | ✅ | Terra [#158](https://github.com/StellaxiaLab/Terra/pull/158). 대체된 [#157](https://github.com/StellaxiaLab/Terra/pull/157)은 닫음 |
 | T-2 | ✅ | T-2a [#168](https://github.com/StellaxiaLab/Terra/pull/168), T-2b [#178](https://github.com/StellaxiaLab/Terra/pull/178). shim 방식 [#167](https://github.com/StellaxiaLab/Terra/pull/167)·[#172](https://github.com/StellaxiaLab/Terra/pull/172)는 소비자가 없어져 필요 없어 닫음 |
 | T-3 | ✅ | Terra [#155](https://github.com/StellaxiaLab/Terra/pull/155)·[#163](https://github.com/StellaxiaLab/Terra/pull/163)·[#159](https://github.com/StellaxiaLab/Terra/pull/159) |
 | T-4 | ✅ | Terra [#160](https://github.com/StellaxiaLab/Terra/pull/160). 대체된 [#161](https://github.com/StellaxiaLab/Terra/pull/161)은 닫음 |
 | T-5 | ✅ (일부 증거만) | `go.work`에서 삭제된 패키지 등재를 지운 것은 #178에 들어 있고 현재 `go.work`는 삭제된 세 패키지를 가리키지 않는다. `Test-ProductSourceLayout.ps1` 등 경로를 가정하는 도구를 따로 점검한 PR은 찾지 못했다 |
-| T-6 | ⏳ 부분 | 문서 갱신 부분만 [#162](https://github.com/StellaxiaLab/Terra/pull/162) 병합. `examples/scene-login-demo` 이관은 M-7과 함께 ⏸ |
+| T-6 | ✅ | 문서 갱신 완료([#162](https://github.com/StellaxiaLab/Terra/pull/162)). `examples/scene-login-demo` 예제 이관은 하지 않음(M-7 결정) |
 | (Terra 후속) | ⏳ | [#173](https://github.com/StellaxiaLab/Terra/pull/173) 호스트 판정 검증을 `module-gateway-integration`으로 이전 — 열림, CI 대기. [#177](https://github.com/StellaxiaLab/Terra/pull/177)은 `main`의 214fff87이 같은 수정이라 중복으로 닫음 |
 
 Terra의 내부 `terra-module-sdk`·`terra-agent-core`·`terra-io-weave` 패키지는 모두 삭제됐고 `go.work`에도 없다.
@@ -47,11 +47,15 @@ Terra의 내부 `terra-module-sdk`·`terra-agent-core`·`terra-io-weave` 패키�
 2. **`terra module new` 스캐폴드가 공개 `terra-sdk` v0.1.0을 require하고 `go.sum`을 굽는다** ([Terra#168](https://github.com/StellaxiaLab/Terra/pull/168)). 이 항목은 설계 문서에 원래 없었다. 폐쇄망 빌드 절차는 Terra `docs/guides/first-module-tutorial.md` §1-1에 있다.
 3. **modules CI에서 다섯 검사를 뺐다** ([modules#68](https://github.com/StellaxiaLab/modules/pull/68)): `terra module pack`(Scene 무결성), 출하 Scene의 실 런타임 마운트(G-23), 스키마 사본 ↔ Terra 원본 바이트 대조, Terra Master 계약 ↔ treebench 생성물, Terra 계약 ↔ node-gui Master 위임 표. 권위는 Terra CI로 넘어갔다. **그 Terra CI 잡은 2026-10-11 현재 원격에 PR도 브랜치(`ci/modules-migration-checks`)도 없다**(Terra·modules 양쪽 확인). 잡이 서기 전까지 modules 병합 전에는 이 다섯 검사가 돌지 않는 공백이다.
 
+4. **`examples/scene-login-demo`는 Terra에 남긴다 (M-7 해당 없음, 결정 2026-10-11, 사용자 승인).**
+   - 예제가 Terra 비공개 패키지 `@terra/scene-runtime`·`@terra/scene-schema`·`@terra/player`에 의존하는데, 이들은 D-1로 Terra에 영구 잔류하는 플랫폼 소유 모듈의 패키지다. modules에는 `@terra/*`를 의존으로 가진 package.json이 없어 옮기면 `npm ci`·`vite build`가 해석 단계에서 실패한다.
+   - 이관하려면 그 패키지들을 공개 게시해야 하는데 이는 1단계 범위 밖의 공개 결정이다.
+   - Terra CI `ci.yml`의 `Build examples/scene-login-demo` 단계는 modules 레이아웃 변경이 Terra를 깨뜨리는 것을 막는 가드(G-22)라 그대로 유지한다.
+
 ### 사용자 결정 대기
 
 | 항목 | 내용 |
 | --- | --- |
-| M-7 / T-6 (`examples/scene-login-demo`) | **보류.** 예제가 Terra 비공개 패키지 `@terra/scene-runtime`·`@terra/scene-schema`·`@terra/player`(플랫폼 소유 모듈의 패키지로 Terra에 영구 잔류)에 의존해 modules에서 빌드되지 않는다. Terra CI `ci.yml`의 `Build examples/scene-login-demo` 단계는 modules 레이아웃 변경이 Terra를 깨는 것을 막는 가드(G-22)다. **권고: Terra에 남기고 M-7/T-6을 정정. 사용자가 아직 승인하지 않았다.** |
 | P-3 (라이선스) | 미지정. terra-sdk·terra-agent·modules 모두 LICENSE 없음. 사용자 결정 대기 |
 
 > 이 문서는 네 레포(`Terra` · `modules` · `terra-sdk` · `terra-agent`)에 **같은 내용**으로 놓인다.
