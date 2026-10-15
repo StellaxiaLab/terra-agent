@@ -417,6 +417,7 @@ func (a *Agent) invoke(ctx context.Context, arguments json.RawMessage) ToolResul
 		return a.record(ToolInvoke, "", ToolResult{Err: err})
 	}
 	operationID := strings.TrimSpace(parsed.OperationID)
+	detail := callDetail{input: parsed.Input}
 	if operationID == "" {
 		return a.record(ToolInvoke, "", ToolResult{Err: &Error{
 			Code: CodeInvalidArguments, Message: "operationId is required",
@@ -427,15 +428,18 @@ func (a *Agent) invoke(ctx context.Context, arguments json.RawMessage) ToolResul
 	// 부르는 경로가 있으면 그 경로가 게이트를 우회하는 경로가 된다.
 	operation, err := a.client.Describe(ctx, operationID)
 	if err != nil {
-		return a.recordCall(ToolInvoke, operationID, "", parsed.Reason, ToolResult{Err: asError(err)})
+		return a.recordDetailed(detail, ToolInvoke, operationID, "", parsed.Reason, ToolResult{Err: asError(err)})
 	}
 
+	if operation.Output != nil {
+		detail.outputMode = operation.Output.Mode
+	}
 	judgement := Decide(operation, a.policy(ctx))
 
 	// 계획만 하는 실행에서는 판정까지만 하고 부르지 않는다. 판정을 건너뛰면
 	// "실제로 돌렸다면 물어봤을 것인가"를 계획이 말하지 못한다.
 	if a.dryRun {
-		return a.recordPlanned(operationID, judgement, parsed.Reason, marshalResult(map[string]any{
+		return a.recordPlanned(detail, operationID, judgement, parsed.Reason, marshalResult(map[string]any{
 			"dryRun":      true,
 			"operationId": operationID,
 			"input":       rawOrEmpty(parsed.Input),
@@ -451,7 +455,7 @@ func (a *Agent) invoke(ctx context.Context, arguments json.RawMessage) ToolResul
 	// 방식이 생기기 전까지는 거절이 정직한 답이다. 사람에게 묻기 전에 거절한다
 	// — 어차피 부를 수 없는 것을 승인해 달라고 묻지 않는다.
 	if operation.Output != nil && operation.Output.Mode == "stream" {
-		return a.recordCall(ToolInvoke, operationID, judgement, parsed.Reason, ToolResult{Err: &Error{
+		return a.recordDetailed(detail, ToolInvoke, operationID, judgement, parsed.Reason, ToolResult{Err: &Error{
 			Code:    CodeStreamUnsupported,
 			Message: "operation " + operationID + " answers as a stream, which this tool surface does not carry",
 		}})
@@ -461,7 +465,7 @@ func (a *Agent) invoke(ctx context.Context, arguments json.RawMessage) ToolResul
 	case DecisionRun:
 	case DecisionConfirm:
 		if a.approver == nil {
-			return a.recordCall(ToolInvoke, operationID, judgement, parsed.Reason, ToolResult{Err: &Error{
+			return a.recordDetailed(detail, ToolInvoke, operationID, judgement, parsed.Reason, ToolResult{Err: &Error{
 				Code: CodeApprovalRequired,
 				Message: "this operation needs a person's approval and this session has nobody to ask (" +
 					judgement.Reason + "); a human can run it with `terra module call " + operationID + "`",
@@ -472,20 +476,20 @@ func (a *Agent) invoke(ctx context.Context, arguments json.RawMessage) ToolResul
 			Judgement: judgement, Operation: operation,
 		})
 		if askErr != nil {
-			return a.recordCall(ToolInvoke, operationID, judgement, parsed.Reason, ToolResult{Err: &Error{
+			return a.recordDetailed(detail, ToolInvoke, operationID, judgement, parsed.Reason, ToolResult{Err: &Error{
 				Code:    CodeApprovalRequired,
 				Message: "approval for " + operationID + " was not given: " + askErr.Error(),
 			}})
 		}
 		if !approved {
-			return a.recordCall(ToolInvoke, operationID, judgement, parsed.Reason, ToolResult{Err: &Error{
+			return a.recordDetailed(detail, ToolInvoke, operationID, judgement, parsed.Reason, ToolResult{Err: &Error{
 				Code:    CodeApprovalDenied,
 				Message: "a person declined " + operationID + "; do not retry it, explain what you would have done instead",
 			}})
 		}
 	default:
 		// plan: 제안만 한다. refuse: 물을 사람이 없는 모드다. 둘 다 부르지 않는다.
-		return a.recordCall(ToolInvoke, operationID, judgement, parsed.Reason, ToolResult{Err: &Error{
+		return a.recordDetailed(detail, ToolInvoke, operationID, judgement, parsed.Reason, ToolResult{Err: &Error{
 			Code: CodeApprovalRequired,
 			Message: "this operation needs a person's approval and this session has nobody to ask (" +
 				judgement.Reason + "); a human can run it with `terra module call " + operationID + "`",
@@ -497,7 +501,7 @@ func (a *Agent) invoke(ctx context.Context, arguments json.RawMessage) ToolResul
 	// 아무도 모르고, 되풀이는 그 모르는 것을 두 번 하는 일이다.
 	repeatKey := invokeKey(operationID, parsed.Input)
 	if previous, failed := a.dispatched[repeatKey]; failed && !AllowsRetry(operation) {
-		return a.recordCall(ToolInvoke, operationID, judgement, parsed.Reason, ToolResult{Err: &Error{
+		return a.recordDetailed(detail, ToolInvoke, operationID, judgement, parsed.Reason, ToolResult{Err: &Error{
 			Code: CodeRetryRefused,
 			Message: "an identical call to " + operationID + " already failed after it may have reached " +
 				"the provider (" + previous.Code + "), and the contract declares it must not be retried; " +
@@ -511,7 +515,7 @@ func (a *Agent) invoke(ctx context.Context, arguments json.RawMessage) ToolResul
 		if failure.Status == 0 || failure.Status >= 500 {
 			a.dispatched[repeatKey] = failure
 		}
-		return a.recordCall(ToolInvoke, operationID, judgement, parsed.Reason, ToolResult{Err: failure, TraceID: failure.TraceID})
+		return a.recordDetailed(detail, ToolInvoke, operationID, judgement, parsed.Reason, ToolResult{Err: failure, TraceID: failure.TraceID})
 	}
 	delete(a.dispatched, repeatKey)
 
@@ -536,7 +540,8 @@ func (a *Agent) invoke(ctx context.Context, arguments json.RawMessage) ToolResul
 	}
 	result := marshalResult(payload)
 	result.TraceID = traceID
-	return a.recordCall(ToolInvoke, operationID, judgement, parsed.Reason, result)
+	detail.response = response
+	return a.recordDetailed(detail, ToolInvoke, operationID, judgement, parsed.Reason, result)
 }
 
 // nodes answers the fleet vocabulary. A credential that cannot reach past its
@@ -574,7 +579,7 @@ func (a *Agent) callExternal(ctx context.Context, server, tool string, arguments
 	judgement := DecideExternal(registered, a.policy(ctx))
 
 	if a.dryRun {
-		return a.recordExternal(qualified, judgement, StatusPlanned, 0, marshalResult(map[string]any{
+		return a.recordExternal(arguments, qualified, judgement, StatusPlanned, 0, marshalResult(map[string]any{
 			"dryRun": true, "server": server, "tool": tool,
 			"arguments":   rawOrEmpty(arguments),
 			"approval":    judgement.Decision,
@@ -587,7 +592,7 @@ func (a *Agent) callExternal(ctx context.Context, server, tool string, arguments
 	case DecisionRun:
 	case DecisionConfirm:
 		if a.approver == nil {
-			return a.recordExternal(qualified, judgement, StatusRefused, 0, ToolResult{Err: &Error{
+			return a.recordExternal(arguments, qualified, judgement, StatusRefused, 0, ToolResult{Err: &Error{
 				Code: CodeApprovalRequired,
 				Message: "calling " + qualified + " needs a person's approval (" + judgement.Reason +
 					") and this session has nobody to ask",
@@ -597,24 +602,24 @@ func (a *Agent) callExternal(ctx context.Context, server, tool string, arguments
 			OperationID: qualified, Input: rawOrEmpty(arguments), Judgement: judgement,
 		})
 		if askErr != nil {
-			return a.recordExternal(qualified, judgement, StatusRefused, 0, ToolResult{Err: &Error{
+			return a.recordExternal(arguments, qualified, judgement, StatusRefused, 0, ToolResult{Err: &Error{
 				Code: CodeApprovalRequired, Message: "approval for " + qualified + " was not given: " + askErr.Error(),
 			}})
 		}
 		if !approved {
-			return a.recordExternal(qualified, judgement, StatusRefused, 0, ToolResult{Err: &Error{
+			return a.recordExternal(arguments, qualified, judgement, StatusRefused, 0, ToolResult{Err: &Error{
 				Code: CodeApprovalDenied, Message: "a person declined " + qualified,
 			}})
 		}
 	default:
-		return a.recordExternal(qualified, judgement, StatusRefused, 0, ToolResult{Err: &Error{
+		return a.recordExternal(arguments, qualified, judgement, StatusRefused, 0, ToolResult{Err: &Error{
 			Code: CodeApprovalRequired, Message: judgement.Reason,
 		}})
 	}
 
 	answer, err := a.externalCaller.CallExternal(ctx, server, tool, arguments)
 	if err != nil {
-		return a.recordExternal(qualified, judgement, StatusError, 0, ToolResult{Err: &Error{
+		return a.recordExternal(arguments, qualified, judgement, StatusError, 0, ToolResult{Err: &Error{
 			Code: CodeExternalFailed, Message: "the external server " + quoted(server) + " did not answer: " + err.Error(),
 		}})
 	}
@@ -630,7 +635,7 @@ func (a *Agent) callExternal(ctx context.Context, server, tool string, arguments
 	if answer.IsError {
 		status = StatusError
 	}
-	return a.recordExternal(qualified, judgement, status, len(answer.Content), marshalResult(payload))
+	return a.recordExternal(arguments, qualified, judgement, status, len(answer.Content), marshalResult(payload))
 }
 
 // externalTool finds a registered tool by server and name.
@@ -646,13 +651,13 @@ func (a *Agent) externalTool(server, tool string) (ExternalTool, bool) {
 // recordExternal writes the record for an external call. It carries the
 // qualified name so a reader can tell at a glance that the call left Terra —
 // and the Gateway audit will have no line for it (R8).
-func (a *Agent) recordExternal(qualified string, judgement Judgement, status string, resultBytes int, result ToolResult) ToolResult {
+func (a *Agent) recordExternal(arguments json.RawMessage, qualified string, judgement Judgement, status string, resultBytes int, result ToolResult) ToolResult {
 	a.calls++
 	a.recorder.Record(Record{
 		Time: a.now().UTC(), Tool: qualified, OperationID: qualified,
 		Decision: judgement.Decision, Judgement: judgement.Reason,
 		Status: status, ErrorCode: errorCodeOf(result),
-		External: true, ResultBytes: resultBytes,
+		External: true, ResultBytes: resultBytes, InputSummary: summarizeInput(arguments),
 	})
 	return result
 }
@@ -758,18 +763,36 @@ func (a *Agent) record(tool, operationID string, result ToolResult) ToolResult {
 	return a.recordCall(tool, operationID, nil, "", result)
 }
 
+// callDetail is what a record learns about an invoke beyond who and why: what
+// the model handed over, what the contract says the answer's mode is, and the
+// answer itself. Every part is optional — a call that failed before the
+// contract was read has only its input.
+type callDetail struct {
+	input      json.RawMessage
+	outputMode string
+	response   json.RawMessage
+}
+
 // recordPlanned writes the record of a call that was deliberately not made.
-func (a *Agent) recordPlanned(operationID string, judgement Judgement, reason string, result ToolResult) ToolResult {
+func (a *Agent) recordPlanned(detail callDetail, operationID string, judgement Judgement, reason string, result ToolResult) ToolResult {
 	a.calls++
 	a.recorder.Record(Record{
 		Time: a.now().UTC(), Tool: ToolInvoke, OperationID: operationID, Reason: reason,
 		Decision: judgement.Decision, Judgement: judgement.Reason, Status: StatusPlanned,
+		InputSummary: summarizeInput(detail.input), OutputMode: detail.outputMode,
 	})
 	return result
 }
 
 // recordCall writes one record. judgement may be a Judgement or nil.
 func (a *Agent) recordCall(tool, operationID string, judgement any, reason string, result ToolResult) ToolResult {
+	return a.recordDetailed(callDetail{}, tool, operationID, judgement, reason, result)
+}
+
+// recordDetailed is recordCall with the detail an invoke has. The summaries
+// are built here, from the masking in summary.go, so no caller can record raw
+// input by taking a shortcut.
+func (a *Agent) recordDetailed(detail callDetail, tool, operationID string, judgement any, reason string, result ToolResult) ToolResult {
 	a.calls++
 	record := Record{
 		Time:        a.now().UTC(),
@@ -778,6 +801,9 @@ func (a *Agent) recordCall(tool, operationID string, judgement any, reason strin
 		Reason:      reason,
 		TraceID:     result.TraceID,
 		Status:      StatusOK,
+
+		InputSummary: summarizeInput(detail.input),
+		OutputMode:   detail.outputMode,
 	}
 	if typed, ok := judgement.(Judgement); ok {
 		record.Decision = typed.Decision
@@ -790,6 +816,10 @@ func (a *Agent) recordCall(tool, operationID string, judgement any, reason strin
 		case CodeApprovalRequired, CodeApprovalDenied, CodeStreamUnsupported, CodeRetryRefused:
 			record.Status = StatusRefused
 		}
+	}
+	// Only a call that ran has an answer to excerpt; a refusal is not one.
+	if record.Status != StatusRefused && (result.Err != nil || len(detail.response) > 0) {
+		record.ResultSummary = summarizeResult(result, detail.response)
 	}
 	a.recorder.Record(record)
 	return result

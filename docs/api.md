@@ -122,7 +122,7 @@ type ExternalCaller interface {
 | `Tool` | `Name`, `Title`, `Description`, `InputSchema json.RawMessage` |
 | `ToolResult` | `Payload json.RawMessage`, `Err *Error`, `TraceID string` |
 | `Error` | `Code`, `Message`, `TraceID`, `Status int`, `Retryable bool`, `Error() string` |
-| `Record` | `Time`, `Tool`, `OperationID`, `Decision`, `Judgement`, `Reason`, `TraceID`, `Status`, `ErrorCode`, `External`, `ResultBytes` |
+| `Record` | `Time`, `Tool`, `OperationID`, `Decision`, `Judgement`, `Reason`, `TraceID`, `Status`, `ErrorCode`, `External`, `ResultBytes`, `InputSummary`, `ResultSummary`, `OutputMode` (뒤 셋은 선택·additive — 없는 줄은 이전 기록) |
 | `ExternalTool` | `Server`, `Name`, `Title`, `Description`, `InputSchema`, `ReadOnly`, `QualifiedName() string` |
 | `ExternalResult` | `Content string`, `Truncated bool`, `IsError bool` |
 
