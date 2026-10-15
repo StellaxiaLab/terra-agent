@@ -34,6 +34,21 @@ type Record struct {
 	// leaves it zero — there the trace id joins to a server-side line that
 	// already knows.
 	ResultBytes int `json:"resultBytes,omitempty"`
+	// InputSummary is what the model handed the call, after secrets were masked
+	// and the text bounded (summarizeInput). It is the only place an
+	// auto-approved call's arguments are kept; absent when the input was not
+	// JSON, because what cannot be masked is not carried.
+	InputSummary string `json:"inputSummary,omitempty"`
+	// ResultSummary is a bounded, masked excerpt of what a Gateway call
+	// answered, or the error code and message. It is empty for a call that did
+	// not run (planned, refused before the call) and for external calls, whose
+	// answer is a third party's text and is counted in ResultBytes instead.
+	ResultSummary string `json:"resultSummary,omitempty"`
+	// OutputMode is the contract's own output.mode for the operation, verbatim
+	// (immediate, accepted-job, stream, empty). "accepted-job" means the call
+	// was received, not finished. Empty when the contract declares none or the
+	// contract could not be read.
+	OutputMode string `json:"outputMode,omitempty"`
 }
 
 // Record statuses.
