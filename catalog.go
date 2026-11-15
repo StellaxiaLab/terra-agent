@@ -42,6 +42,20 @@ type CatalogExecution struct {
 	IdempotencyMode  string `json:"idempotencyMode,omitempty"`
 	RetryMode        string `json:"retryMode,omitempty"`
 	Cancellation     string `json:"cancellation,omitempty"`
+	// Approval is the human-approval-gate policy. nil means the operation
+	// cannot be called through the approval gate.
+	Approval *CatalogApproval `json:"approval,omitempty"`
+}
+
+// CatalogApproval is execution.approval from the contract: tier T3|T4, impact
+// node|cluster|trust, the inputs the approval screen shows, an optional node
+// switch, and response fields that are shown once and never returned to a page.
+type CatalogApproval struct {
+	Tier         string   `json:"tier"`
+	Impact       string   `json:"impact"`
+	Inputs       []string `json:"inputs"`
+	Switch       string   `json:"switch,omitempty"`
+	SecretResult []string `json:"secret_result,omitempty"`
 }
 
 // CatalogOutput is how an operation answers: immediate, accepted-job, stream
